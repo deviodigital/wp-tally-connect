@@ -35,7 +35,6 @@ class wptallyconnect_widget extends WP_Widget {
         );
     }
 
-
     /**
      * Widget definition
      *
@@ -63,12 +62,41 @@ class wptallyconnect_widget extends WP_Widget {
 
         if( $instance['username'] ) {
             $data = wptallyconnect_get_data( $instance['username'] );
-
-            if( array_key_exists( 'error', $data ) ) {
-                echo $data['error'];
+            if( array_key_exists( 'error', $data['plugins'] ) ) {
+                echo $data['plugins']['error'];
             } else {
-                // Do stuff
-                var_dump( $data );
+				// Do stuff
+				$i = 1;
+				foreach( $data['plugins'] as $plugin) {
+					echo "<div class='tally-plugin-meta'>";
+					echo "<a class='tally-plugin-link' href='". $plugin['url'] ."' target='_blank'>". $plugin['name'] ."</a><br />";
+					// Display the version if user checks it in the widget
+					if('on' == $instance['version'] ) {
+						echo "<span class='tally-plugin-meta-item'><strong>Version: </strong>". $plugin['version'] ."</span><br />";
+					}
+					// Display the date added if user checks it in the widget
+					if('on' == $instance['added'] ) {
+						echo "<span class='tally-plugin-meta-item'><strong>Added: </strong>". $plugin['added'] ."<br /></span>";
+					}
+					// Display the last updated date if user checks it in the widget
+					if('on' == $instance['updated'] ) {
+						echo "<span class='tally-plugin-meta-item'><strong>Updated: </strong>". $plugin['updated'] ."<br /></span>";
+					}
+					// Display the rating if user checks it in the widget
+					if('on' == $instance['ratings'] ) {
+						echo "<span class='tally-plugin-meta-item'><strong>Rating: </strong>" . ( empty( $plugin['rating'] ) ? "not yet rated<br />" : $plugin['rating'] . " out of 5 stars<br /></span>" );
+					}
+					// Display the downloads if user checks it in the widget
+					if('on' == $instance['downloads'] ) {
+						echo "<span class='tally-plugin-meta-item'><strong>Downloads: </strong>". number_format( $plugin['downloads'] ) ."</span><br />";
+					}
+					echo "</div>";
+					if ($i++ == $instance['limit']) break;
+				}
+				// Display link to profile if user checks it in the widget
+				if('on' == $instance['viewall'] ) {
+					echo "<a class='tally-profile-link' href='https://profiles.wordpress.org/". $instance['username'] ."' target='_blank'>View all plugins &rarr;</a>";
+				}
             }
         } else {
             _e( 'No username has been specified!', 'wp-tally-connect' );
@@ -95,6 +123,13 @@ class wptallyconnect_widget extends WP_Widget {
 
         $instance['title']      = strip_tags( $new_instance['title'] );
         $instance['username']   = strip_tags( $new_instance['username'] );
+        $instance['limit']   	= strip_tags( $new_instance['limit'] );
+        $instance['version']   	= $new_instance['version'];
+        $instance['added']   	= $new_instance['added'];
+        $instance['updated']   	= $new_instance['updated'];
+        $instance['ratings']   	= $new_instance['ratings'];
+        $instance['downloads']  = $new_instance['downloads'];
+        $instance['viewall']  = $new_instance['viewall'];
         $instance['style']      = $new_instance['style'];
 
         return $instance;
@@ -114,6 +149,13 @@ class wptallyconnect_widget extends WP_Widget {
         $defaults = array(
             'title'     => '',
             'username'  => '',
+            'limit'  => '',
+            'version'  => '',
+            'added'  => '',
+            'updated'  => '',
+            'ratings'  => '',
+            'downloads'  => '',
+            'viewall'  => '',
             'style'     => 'standard'
         );
 
@@ -123,12 +165,17 @@ class wptallyconnect_widget extends WP_Widget {
             <label for="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>"><?php _e( 'Title:', 'wp-tally-connect' ); ?></label>
             <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'title' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'title' ) ); ?>" type="text" value="<?php echo $instance['title']; ?>" />
         </p>
-
+		
         <p>
             <label for="<?php echo esc_attr( $this->get_field_id( 'username' ) ); ?>"><?php _e( 'WordPress.org Username:', 'wp-tally-connect' ); ?></label>
             <input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'username' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'username' ) ); ?>" type="text" value="<?php echo $instance['username']; ?>" />
         </p>
-
+		
+        <p>
+            <label for="<?php echo esc_attr( $this->get_field_id( 'limit' ) ); ?>"><?php _e( 'Amount of plugins to show:', 'wp-tally-connect' ); ?></label>
+			<input class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'limit' ) ); ?>" type="number" name="<?php echo esc_attr( $this->get_field_name( 'limit' ) ); ?>" min="1" max="999" value="<?php echo $instance['limit']; ?>" />
+        </p>
+		
         <p>
             <label for="<?php echo esc_attr( $this->get_field_id( 'style' ) ); ?>"><?php _e( 'Widget Style:', 'wp-tally-connect' ); ?></label>
             <select class="widefat" id="<?php echo esc_attr( $this->get_field_id( 'style' ) ); ?>" name="<?php echo esc_attr( $this->get_field_name( 'style' ) ); ?>">
@@ -136,6 +183,36 @@ class wptallyconnect_widget extends WP_Widget {
                 <option value="goal" <?php selected( $instance['style'], 'goal' ); ?>><?php _e( 'Goal', 'wp-tally-connect' ); ?></option>
                 <option value="countup" <?php selected( $instance['style'], 'countup' ); ?>><?php _e( 'Count Up', 'wp-tally-connect' ); ?></option>
             </select>
+        </p>
+		
+        <p>
+			<input class="checkbox" type="checkbox" <?php checked($instance['version'], 'on'); ?> id="<?php echo $this->get_field_id('version'); ?>" name="<?php echo $this->get_field_name('version'); ?>" /> 
+			<label for="<?php echo esc_attr( $this->get_field_id( 'version' ) ); ?>"><?php _e( 'Display version?', 'wp-tally-connect' ); ?></label>
+        </p>
+		
+        <p>
+			<input class="checkbox" type="checkbox" <?php checked($instance['added'], 'on'); ?> id="<?php echo $this->get_field_id('added'); ?>" name="<?php echo $this->get_field_name('added'); ?>" /> 
+			<label for="<?php echo esc_attr( $this->get_field_id( 'added' ) ); ?>"><?php _e( 'Display date added?', 'wp-tally-connect' ); ?></label>
+        </p>
+		
+        <p>
+			<input class="checkbox" type="checkbox" <?php checked($instance['updated'], 'on'); ?> id="<?php echo $this->get_field_id('updated'); ?>" name="<?php echo $this->get_field_name('updated'); ?>" /> 
+			<label for="<?php echo esc_attr( $this->get_field_id( 'updated' ) ); ?>"><?php _e( 'Display last updated?', 'wp-tally-connect' ); ?></label>
+        </p>
+		
+        <p>
+			<input class="checkbox" type="checkbox" <?php checked($instance['ratings'], 'on'); ?> id="<?php echo $this->get_field_id('ratings'); ?>" name="<?php echo $this->get_field_name('ratings'); ?>" /> 
+			<label for="<?php echo esc_attr( $this->get_field_id( 'ratings' ) ); ?>"><?php _e( 'Display ratings?', 'wp-tally-connect' ); ?></label>
+        </p>
+		
+        <p>
+			<input class="checkbox" type="checkbox" <?php checked($instance['downloads'], 'on'); ?> id="<?php echo $this->get_field_id('downloads'); ?>" name="<?php echo $this->get_field_name('downloads'); ?>" /> 
+			<label for="<?php echo esc_attr( $this->get_field_id( 'downloads' ) ); ?>"><?php _e( 'Display download count?', 'wp-tally-connect' ); ?></label>
+        </p>
+		
+        <p>
+			<input class="checkbox" type="checkbox" <?php checked($instance['viewall'], 'on'); ?> id="<?php echo $this->get_field_id('viewall'); ?>" name="<?php echo $this->get_field_name('viewall'); ?>" /> 
+			<label for="<?php echo esc_attr( $this->get_field_id( 'viewall' ) ); ?>"><?php _e( 'Display link to WordPress.org profile?', 'wp-tally-connect' ); ?></label>
         </p>
         <?php
     }
